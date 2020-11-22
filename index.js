@@ -16,11 +16,6 @@ class PeachFactory {
 
 		this.origin = origin;
 
-		this.getAuthorisation = getAuthorisation;
-		this.authBeingUpdatedPromises = [];
-		this.auth = null;
-		this.latestRequestFactoryAuthVersion = 0;
-
 		this.maxAttemptsPerRequest = maxAttemptsPerRequest;
 
 		this.checkedOut = 0;
@@ -32,11 +27,47 @@ class PeachFactory {
 		this.retryAfterHeader = retryAfterHeader.toLowerCase();
 		this.repeatedTriggerDelay = repeatedTriggerDelay;
 
+		this.authBeingUpdatedPromises = [];
+		this.auth = null;
+		this.latestRequestFactoryAuthVersion = 0;
+
+		if (typeof getAuthorisation === 'object') {
+			getAuthorisation = this.getStandardAuthorisationFunction(getAuthorisation);
+		}
+
+		this.getAuthorisation = getAuthorisation;
+
+	}
+
+	getStandardAuthorisationFunction(getAuthorisation) {
+		if (getAuthorisation == null) {
+			return () => {
+				throw new Error('Cannot fetch authorisation with no authorisation object or function passed');
+			};
+		}
+		switch (getAuthorisation.auth_method) {
+			case 'oauth2':
+			return async () => {
+				return await request({
+					method: 'POST',
+					uri: getAuthorisation.uri,
+					headers: {
+						Authorization: 'Basic ' + Buffer.from(getAuthorisation.client_id + ':' + getAuthorisation.client_secret).toString('base64'),
+						'Content-Type': 'application/x-www-form-urlencoded'
+					},
+					form: {
+						grant_type: 'client_credentials'
+					},
+					json: true
+				});
+			};
+		}
+		throw new Error(`${getAuthorisation.auth_method} is an unknown/unsupported authorisation method`);
 	}
 
 	async getNewAuthObject() {
 		if (typeof this.getAuthorisation !== 'function') {
-			throw new Error('Factory attempted to update authorisation by no authorisation function was provided'); 
+			throw new Error('Factory attempted to update authorisation but no authorisation function was provided'); 
 		}
 		const {token_type, access_token, expires_at, expires_in} = await this.getAuthorisation();
 		if (typeof token_type !== 'string') {
