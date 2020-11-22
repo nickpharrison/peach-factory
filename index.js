@@ -1,6 +1,6 @@
 const request = require('request-promise');
 
-class RequestFactory {
+class PeachFactory {
 
 	constructor({
 		origin,
@@ -275,4 +275,4 @@ class RequestFactory {
 
 }
 
-module.exports = RequestFactory;
+module.exports.PeachFactory = PeachFactory;
