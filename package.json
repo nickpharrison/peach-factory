@@ -1,0 +1,29 @@
+{
+  "name": "peach-factory",
+  "version": "0.0.1",
+  "description": "Request Factory Facade for processing",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nickpharrison/peach-factory.git"
+  },
+  "keywords": [
+    "Node",
+    "Request",
+    "Promise",
+    "Factory"
+  ],
+  "author": "Nick Harrison",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/nickpharrison/peach-factory/issues"
+  },
+  "homepage": "https://github.com/nickpharrison/peach-factory#readme",
+  "dependencies": {
+    "request": "^2.88.2",
+    "request-promise": "^4.2.6"
+  }
+}
