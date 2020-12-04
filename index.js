@@ -7,6 +7,7 @@ class PeachFactory {
 		getAuthorisation,
 		repeatedTriggerDelay = 10,
 		checkedOutMax = 3,
+		postAuthFetchFeeze = 2000,
 		maxAttemptsPerRequest = 3,
 		verifySsl = true,
 		logRequests = true,
@@ -21,6 +22,7 @@ class PeachFactory {
 
 		this.checkedOut = 0;
 		this.checkedOutMax = checkedOutMax;
+		this.postAuthFetchFeeze = postAuthFetchFeeze;
 
 		this.freezeUntil = null;
 
@@ -115,6 +117,7 @@ class PeachFactory {
 							poppedItem.resolve(authObject);
 						}
 					}
+					this.freezeFor(this.postAuthFetchFeeze);
 				}
 			}
 		});
@@ -127,6 +130,15 @@ class PeachFactory {
 			return {header: 'Bearer ' + auth.access_token, version: auth.version};
 		}
 		throw new Error(`Received an invalid token_type from getAuthorisation function "${auth.token_type}"`);
+	}
+
+	freezeFor(freezeFor) {
+		if (freezeFor > 0) {
+			const freezeUntil = new Date(Date.now() + freezeFor);
+			if (!(this.freezeUntil instanceof Date) || this.freezeUntil < freezeUntil) {
+				this.freezeUntil = freezeUntil;
+			}
+		}
 	}
 
 	getQueue() {
@@ -208,7 +220,7 @@ class PeachFactory {
 			switch(err.statusCode) {
 				case 401:
 					if (authType === 'RequestFactory') {
-						if (this.auth != null && requestFactoryAuthVersion == this.latestRequestFactoryAuthVersion) {
+						if (this.auth != null && requestFactoryAuthVersion === this.latestRequestFactoryAuthVersion) {
 							this.auth = null;
 						}
 					} else if (authType === 'CustomFunction') {
@@ -217,10 +229,7 @@ class PeachFactory {
 				break;
 				case 429:
 					const retryAfter = Number(response.response.headers['retry-after']) * 1000;
-					const freezeUntil = new Date(Date.now() + retryAfter);
-					if (!(this.freezeUntil instanceof Date) || this.freezeUntil < freezeUntil) {
-						this.freezeUntil = freezeUntil;
-					}
+					this.freezeFor(retryAfter);
 				break;
 			}
 
@@ -257,9 +266,12 @@ class PeachFactory {
 			const response = await this.doQueueItem(queueItem);
 			queueItem.resolve(response);
 		} catch (err) {
+			queueItem.attempts++;
 			if (err.statusCode == null) { // Not a failure directly from the request
 				console.error(`An error occurred with the request factory (${this.origin}) and there was an error it could not handle:`, err);
-			} else if (++queueItem.attempts >= this.maxAttemptsPerRequest) {
+				this.queue.unshift(queueItem);
+				this.triggerNextQueueItem();
+			} else if (queueItem.attempts >= this.maxAttemptsPerRequest) {
 				console.error(`Failed RequestFactory Request (Attempt ${queueItem.attempts}/${this.maxAttemptsPerRequest}):`, queueItem, err);
 				queueItem.reject(err);
 			} else {
