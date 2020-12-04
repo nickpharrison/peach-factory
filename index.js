@@ -8,6 +8,7 @@ class PeachFactory {
 		repeatedTriggerDelay = 10,
 		checkedOutMax = 3,
 		maxAttemptsPerRequest = 3,
+		verifySsl = true,
 		logRequests = true,
 		retryAfterHeader = 'Retry-After'
 	}) {
@@ -23,6 +24,7 @@ class PeachFactory {
 
 		this.freezeUntil = null;
 
+		this.verifySsl = verifySsl;
 		this.logRequests = logRequests;
 		this.retryAfterHeader = retryAfterHeader.toLowerCase();
 		this.repeatedTriggerDelay = repeatedTriggerDelay;
@@ -36,6 +38,8 @@ class PeachFactory {
 		}
 
 		this.getAuthorisation = getAuthorisation;
+
+		this.repeatedTrigger();
 
 	}
 
@@ -160,7 +164,8 @@ class PeachFactory {
 			body: queueItem.options.data,
 			headers: (typeof queueItem.options.headers === 'object' && queueItem.options.headers != null) ? queueItem.options.headers : {},
 			json: !queueItem.options.notJson,
-			resolveWithFullResponse: true
+			resolveWithFullResponse: true,
+			rejectUnauthorized: this.verifySsl
 		};
 
 		// Setup auth
