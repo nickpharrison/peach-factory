@@ -67,6 +67,14 @@ class PeachFactory {
 					json: true
 				});
 			};
+			case 'basic':
+			return () => {
+				return {
+					token_type: 'Basic',
+					access_token: Buffer.from(getAuthorisation.client_id + ':' + getAuthorisation.client_secret).toString('base64'),
+					expires_in: 999999
+				};
+			};
 		}
 		throw new Error(`${getAuthorisation.auth_method} is an unknown/unsupported authorisation method`);
 	}
@@ -126,6 +134,8 @@ class PeachFactory {
 	async getAuth(forceRefresh) {
 		const auth = await this.getAuthProperty(forceRefresh);
 		switch(auth.token_type) {
+			case 'Basic':
+			return {header: 'Basic ' + auth.access_token, version: auth.version};
 			case 'Bearer':
 			return {header: 'Bearer ' + auth.access_token, version: auth.version};
 		}
@@ -159,7 +169,7 @@ class PeachFactory {
 			}
 			setTimeout(async () => {
 				await this.pauseIfFrozen();
-				if (freezeUntil.valueOf() === this.freezeUntil.valueOf()) {
+				if (this.freezeUntil != null && freezeUntil.valueOf() === this.freezeUntil.valueOf()) {
 					this.freezeUntil = null;
 				}
 				resolve();
@@ -267,14 +277,14 @@ class PeachFactory {
 			queueItem.resolve(response);
 		} catch (err) {
 			queueItem.attempts++;
-			if (err.statusCode == null) { // Not a failure directly from the request
+			if (queueItem.attempts >= this.maxAttemptsPerRequest) {
+				console.error(`Failed RequestFactory Request (Attempt ${queueItem.attempts}/${this.maxAttemptsPerRequest}):`, queueItem, err);
+				queueItem.reject(err);
+			} else if (err.statusCode == null) { // Not a failure directly from the request
 				console.error(`An error occurred with the request factory (${this.origin}) and there was an error it could not handle:`, err);
 				this.queue.unshift(queueItem);
 				this.triggerNextQueueItem();
-			} else if (queueItem.attempts >= this.maxAttemptsPerRequest) {
-				console.error(`Failed RequestFactory Request (Attempt ${queueItem.attempts}/${this.maxAttemptsPerRequest}):`, queueItem, err);
-				queueItem.reject(err);
-			} else {
+			} else  {
 				console.warn(`Failed RequestFactory Request (Attempt ${queueItem.attempts}/${this.maxAttemptsPerRequest}):`,queueItem, err);
 				this.queue.unshift(queueItem);
 				this.triggerNextQueueItem();
