@@ -54,7 +54,7 @@ class PeachFactory {
 		switch (getAuthorisation.auth_method) {
 			case 'oauth2':
 			return async () => {
-				return await request({
+				const data = await request({
 					method: 'POST',
 					uri: getAuthorisation.uri,
 					headers: {
@@ -66,6 +66,8 @@ class PeachFactory {
 					},
 					json: true
 				});
+				console.log(`RequestFactory fetched new Oauth2 authorisation from ${getAuthorisation.uri}:`, data);
+				return data;
 			};
 			case 'basic':
 			return () => {
@@ -277,15 +279,11 @@ class PeachFactory {
 			queueItem.resolve(response);
 		} catch (err) {
 			queueItem.attempts++;
-			if (queueItem.attempts >= this.maxAttemptsPerRequest) {
-				console.error(`Failed RequestFactory Request (Attempt ${queueItem.attempts}/${this.maxAttemptsPerRequest}):`, queueItem, err);
+			const maxAttempts = queueItem.options.maxAttempts || this.maxAttemptsPerRequest;
+			console.warn(`Failed RequestFactory Request (Attempt ${queueItem.attempts}/${maxAttempts}):`, queueItem, err);
+			if (queueItem.attempts >= maxAttempts) {
 				queueItem.reject(err);
-			} else if (err.statusCode == null) { // Not a failure directly from the request
-				console.error(`An error occurred with the request factory (${this.origin}) and there was an error it could not handle:`, err);
-				this.queue.unshift(queueItem);
-				this.triggerNextQueueItem();
-			} else  {
-				console.warn(`Failed RequestFactory Request (Attempt ${queueItem.attempts}/${this.maxAttemptsPerRequest}):`,queueItem, err);
+			} else {
 				this.queue.unshift(queueItem);
 				this.triggerNextQueueItem();
 			}
