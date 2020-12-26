@@ -35,22 +35,19 @@ class PeachFactory {
 		this.auth = null;
 		this.latestRequestFactoryAuthVersion = 0;
 
-		if (typeof getAuthorisation === 'object') {
-			getAuthorisation = this.getStandardAuthorisationFunction(getAuthorisation);
+		if (typeof getAuthorisation === 'object' && getAuthorisation != null) {
+			this.getAuthorisation = this.getStandardAuthorisationFunction(getAuthorisation);
+		} else if (typeof getAuthorisation === 'function') {
+			this.getAuthorisation = getAuthorisation;
+		} else {
+			this.getAuthorisation = this.getStandardAuthorisationFunction({auth_method: 'none'});
 		}
-
-		this.getAuthorisation = getAuthorisation;
 
 		this.repeatedTrigger();
 
 	}
 
 	getStandardAuthorisationFunction(getAuthorisation) {
-		if (getAuthorisation == null) {
-			return () => {
-				throw new Error('Cannot fetch authorisation with no authorisation object or function passed');
-			};
-		}
 		switch (getAuthorisation.auth_method) {
 			case 'oauth2':
 			return async () => {
@@ -74,6 +71,14 @@ class PeachFactory {
 				return {
 					token_type: 'Basic',
 					access_token: Buffer.from(getAuthorisation.client_id + ':' + getAuthorisation.client_secret).toString('base64'),
+					expires_in: 999999
+				};
+			};
+			case 'none':
+			return () => {
+				return {
+					token_type: 'None',
+					access_token: '',
 					expires_in: 999999
 				};
 			};
@@ -140,6 +145,8 @@ class PeachFactory {
 			return {header: 'Basic ' + auth.access_token, version: auth.version};
 			case 'Bearer':
 			return {header: 'Bearer ' + auth.access_token, version: auth.version};
+			case 'None':
+			return {header: '', version: auth.version};
 		}
 		throw new Error(`Received an invalid token_type from getAuthorisation function "${auth.token_type}"`);
 	}
