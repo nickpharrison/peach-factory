@@ -193,7 +193,7 @@ class PeachFactory {
 			method: queueItem.options.method,
 			uri: this.origin + queueItem.options.path,
 			body: queueItem.options.data,
-			headers: (typeof queueItem.options.headers === 'object' && queueItem.options.headers != null) ? queueItem.options.headers : {},
+			headers: queueItem.options.headers ?? {},
 			json: !queueItem.options.notJson,
 			resolveWithFullResponse: true,
 			rejectUnauthorized: this.verifySsl
@@ -247,7 +247,7 @@ class PeachFactory {
 					}
 				break;
 				case 429:
-					const retryAfter = Number(response.response.headers['retry-after']) * 1000;
+					const retryAfter = Number(err.response.headers['retry-after'] ?? 10) * 1000 + 150;
 					this.freezeFor(retryAfter);
 				break;
 			}
